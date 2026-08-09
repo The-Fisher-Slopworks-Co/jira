@@ -23,25 +23,27 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./index.ts",
-  "module": "./index.ts",
-  "types": "./index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./index.ts",
-      "import": "./index.ts",
-      "default": "./index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "files": [
-    "index.ts",
-    "src",
+    "dist",
     "README.md",
     "LICENSE",
     "LICENSES",
     "REUSE.toml"
   ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

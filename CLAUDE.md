@@ -11,7 +11,8 @@ auth). See README.md for the full API.
 ```sh
 bun install
 bun test            # suite runs against a real local HTTP server, no creds
-bun run typecheck   # tsc --noEmit
+bun run typecheck   # tsc --noEmit, covers the tests too
+bun run build       # tsc -p tsconfig.build.json → dist/
 ```
 
 ## Architecture

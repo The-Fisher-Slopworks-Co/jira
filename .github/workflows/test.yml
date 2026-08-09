@@ -34,3 +34,8 @@ jobs:
 
       - name: Run the test suite
         run: bun test
+
+      # The publish build is what consumers actually get, so break the build
+      # here rather than at `npm publish`.
+      - name: Build the package
+        run: bun run build
