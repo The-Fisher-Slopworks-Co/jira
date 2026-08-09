@@ -1,16 +1,10 @@
 # jira
 
-Cookie-auth REST client for **Jira Server / Data Center** (no API token): signs
-in via `POST /rest/auth/1/session` and replays the `JSESSIONID` on later
-requests. **Zero runtime dependencies and no side effects** — the only thing it
-touches is the global `fetch`. Jira **Cloud is unsupported** (it disables cookie
-auth). See README.md for the full API.
-
 ## Commands
 
 ```sh
 bun install
-bun test            # suite runs against a real local HTTP server, no creds
+bun test            # runs against a real local HTTP server, no creds
 bun run typecheck   # tsc --noEmit, covers the tests too
 bun run build       # tsc -p tsconfig.build.json → dist/
 ```
@@ -19,49 +13,45 @@ bun run build       # tsc -p tsconfig.build.json → dist/
 
 `index.ts` is the public barrel. `src/` holds single-purpose modules:
 
-- `client.ts`  — `JiraClient` (`login`, `getIssue`, `getJson`, `request`) + the `JiraSession` type.
-- `cookie.ts`  — `extractJsessionid` from `Set-Cookie`.
-- `url.ts`     — URL joining / issue-path helpers.
-- `issue.ts`   — `parseIssue` (raw Jira JSON → `JiraIssue`).
-- `errors.ts`  — `JiraError`, `JiraAuthError` (401).
+- `client.ts` — `JiraClient` (`login`, `getIssue`, `getJson`, `request`) and the `JiraSession` type.
+- `cookie.ts` — `extractJsessionid` from `Set-Cookie`.
+- `url.ts` — URL joining and issue-path helpers.
+- `issue.ts` — `parseIssue` (raw Jira JSON → `JiraIssue`).
+- `errors.ts` — `JiraError`, `JiraAuthError` (401).
 
 ## Gotchas
 
-- **NodeNext imports:** import local modules with a `.js` extension even though
-  the files are `.ts` — e.g. `import { x } from './cookie.js'`. Builds fail otherwise.
-- **The library is pure — keep it that way.** No `node:` imports, no
-  `process.env`, no filesystem, no module-level state outside the non-test
-  sources. Persistence and configuration belong to the caller; the base URL comes
-  only from `session.baseUrl`. If a feature seems to need ambient state, take a
-  parameter instead.
-- **No build step** — `main`/`types` point at `index.ts`; the package ships TS source.
-- `getIssue` is **best-effort**: returns `null` on not-found/network/parse failure,
-  throws `JiraAuthError` on 401. Pass `strict: true` to throw instead.
+- Import local modules with a `.js` extension even though the files are `.ts`:
+  `import { x } from './cookie.js'`. NodeNext rejects the extensionless form and
+  emits the specifier verbatim, so what you write is what runs.
+- Keep the library pure. In the non-test sources: no `node:` imports, no
+  `process.env`, no filesystem, no module-level state. Persistence and
+  configuration are the caller's, and the base URL comes only from
+  `session.baseUrl`. If something seems to need ambient state, take a parameter.
+- Two tsconfigs. `tsconfig.json` is `noEmit` and includes the tests, so it backs
+  `typecheck`; `tsconfig.build.json` emits to `dist/` and excludes them. A new
+  compiler option almost always belongs in the base one.
+- `getIssue` is best-effort: `null` on not-found, network or parse failure,
+  `JiraAuthError` on 401, `strict: true` to throw instead.
+- Fixtures stay generic. Issue keys are `PROJ-*`, statuses are English, summaries
+  are invented. No real tracker data.
 
-## Bun preferences
+## Compliance
 
-Default to Bun over Node: `bun <file>`, `bun test`, `bun install`, `bunx`.
-Bun auto-loads `.env` — don't add `dotenv`. Prefer `Bun.file` over `node:fs`.
+The repo follows the [org compliance standard](https://github.com/The-Fisher-Slopworks-Co/.github/blob/main/COMPLIANCE.md);
+`.github/workflows/reuse.yml` fails the build when `reuse lint` does.
 
-## Compliance (org standard)
-
-This repo follows the [The Fisher Slopworks Co compliance standard](https://github.com/The-Fisher-Slopworks-Co/.github/blob/main/COMPLIANCE.md).
-CI (`.github/workflows/reuse.yml`) fails the build if `reuse lint` doesn't pass.
-
-- **License is `AGPL-3.0-or-later`** — the explicit `-or-later` variant, never
-  bare `AGPL-3.0` or `AGPL-3.0-only`. It's declared in `package.json`, the README
-  `## License` section, `REUSE.toml`, and every source header.
-- **Every new file needs copyright + license.** Source files carry a two-line
-  SPDX header in the file's comment syntax; files that can't hold a comment are
-  covered by the `**` wildcard in `REUSE.toml`. Verify with `reuse lint`.
+- The license is `AGPL-3.0-or-later`, never bare `AGPL-3.0` or `AGPL-3.0-only`.
+  It appears in `package.json`, the README, `REUSE.toml` and every source header.
+- Every new file needs copyright and license. Source files carry a two-line SPDX
+  header in their own comment syntax; anything that cannot hold a comment falls
+  under the `**` wildcard in `REUSE.toml`.
   ```ts
   // SPDX-FileCopyrightText: 2026 The Fisher Slopworks Co
   //
   // SPDX-License-Identifier: AGPL-3.0-or-later
   ```
-- **Don't add `CODE_OF_CONDUCT.md` / `SECURITY.md` / `CONTRIBUTING.md`** — they're
+- Don't add `CODE_OF_CONDUCT.md`, `SECURITY.md` or `CONTRIBUTING.md`. They are
   inherited org-wide from the `.github` repo.
-- **Third-party files keep their own license** — never fold them under the
-  blanket wildcard; give them their own `REUSE.toml` annotation.
-- **Fixtures stay generic.** Issue keys are `PROJ-*`, statuses are English
-  (`In Review`, `Done`), summaries are invented. No real tracker data.
+- Third-party files keep their own license and get their own `REUSE.toml`
+  annotation instead of the blanket wildcard.
