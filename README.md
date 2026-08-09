@@ -11,14 +11,13 @@ password instead of an API token. It posts to `/rest/auth/1/session`, gets a
 cookie auth and personal access tokens need Jira 8.14 or newer, so on older
 on-prem instances this is what is left.
 
-Its only dependency is a global `fetch`. A session is `{ baseUrl, cookie }`:
-`login` returns one, every other method takes it.
-
 ## Install
 
 ```sh
 bun add @slopworks/jira      # npm i @slopworks/jira
 ```
+
+No dependencies. Needs a runtime with a global `fetch`.
 
 ## Usage
 
