@@ -5,28 +5,25 @@
 import { extractJsessionid } from './cookie.js';
 import { JiraAuthError, JiraError } from './errors.js';
 import { type JiraIssue, parseIssue } from './issue.js';
-import {
-  defaultSessionPath,
-  type JiraSession,
-  readSession,
-  writeSession,
-} from './session.js';
 import { DEFAULT_ISSUE_FIELDS, isAbsoluteUrl, issuePath, joinUrl, stripTrailingSlash } from './url.js';
 
 /** Default per-request timeout. A best-effort tool must not hang on a slow host. */
 export const DEFAULT_TIMEOUT_MS = 6000;
 
+/**
+ * A Jira session: the base URL and the cookie header to replay. Returned by
+ * {@link JiraClient.login} and accepted by every authenticated method. It is
+ * plain, serialisable data — storing it between runs is the caller's job.
+ */
+export interface JiraSession {
+  /** Base URL, no trailing slash (e.g. `https://jira.example.com`). */
+  baseUrl: string;
+  /** Cookie header value to send, e.g. `JSESSIONID=ABC123`. */
+  cookie: string;
+}
+
 /** Options for {@link JiraClient}. All optional, with sensible defaults. */
 export interface JiraClientOptions {
-  /**
-   * Application name, used to derive the default session path
-   * (`$XDG_CONFIG_HOME/<app>/<sessionFile>`). Defaults to `jira`.
-   */
-  app?: string;
-  /** Session file name under the app directory. Defaults to `session.json`. */
-  sessionFile?: string;
-  /** Explicit session file path. Overrides {@link JiraClientOptions.app}/{@link JiraClientOptions.sessionFile}. */
-  sessionPath?: string;
   /** Per-request timeout in ms. Defaults to {@link DEFAULT_TIMEOUT_MS}. */
   timeoutMs?: number;
   /** `fetch` implementation, for testing. Defaults to the global `fetch`. */
@@ -51,51 +48,30 @@ export interface GetIssueOptions {
  * {@link JiraClient.request}/{@link JiraClient.getJson} replay it, and
  * {@link JiraClient.getIssue} reads an issue's common fields.
  *
- * Construction is side-effect-free; the session file is only touched inside the
- * async methods. The client has no runtime dependencies beyond `node:` builtins
- * and the global `fetch`, so it bundles cleanly and runs wherever those exist.
+ * The client keeps no ambient state: it never touches the filesystem and never
+ * reads an environment variable. Every request is decided by the
+ * {@link JiraSession} it is handed, and the only dependencies are the global
+ * `fetch` and nothing else — so it bundles cleanly and runs wherever `fetch`
+ * exists.
  */
 export class JiraClient {
-  private readonly sessionPath: string;
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: JiraClientOptions = {}) {
-    this.sessionPath =
-      options.sessionPath ??
-      defaultSessionPath(options.app ?? 'jira', options.sessionFile ?? 'session.json');
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetch ?? fetch;
   }
 
-  /** The path this client reads/writes the persisted session to. */
-  getSessionPath(): string {
-    return this.sessionPath;
-  }
-
-  /** Read the persisted session, or `null` if there isn't a valid one. */
-  loadSession(): Promise<JiraSession | null> {
-    return readSession(this.sessionPath);
-  }
-
-  /** Persist a session to disk (mode 0600). */
-  saveSession(session: JiraSession): Promise<void> {
-    return writeSession(session, this.sessionPath);
-  }
-
   /**
-   * Authenticate against `POST /rest/auth/1/session` and return the session,
-   * persisting it unless `persist: false`. Always uses the explicit `baseUrl`
-   * argument (never the `JIRA_URL` override — that only affects replayed
-   * requests). Throws {@link JiraError} with a human-readable message on bad
-   * credentials, a non-Server endpoint, a CAPTCHA wall, or a network failure.
+   * Authenticate against `POST /rest/auth/1/session` and return the session.
+   * Throws {@link JiraError} with a human-readable message on bad credentials,
+   * a non-Server endpoint, a CAPTCHA wall, or a network failure.
+   *
+   * The session is returned, never stored: persist it yourself if later runs
+   * should reuse it instead of signing in again.
    */
-  async login(
-    baseUrl: string,
-    username: string,
-    password: string,
-    options: { persist?: boolean } = {},
-  ): Promise<JiraSession> {
+  async login(baseUrl: string, username: string, password: string): Promise<JiraSession> {
     const base = stripTrailingSlash(baseUrl);
     let res: Response;
     try {
@@ -131,21 +107,16 @@ export class JiraClient {
     if (cookie == null) {
       throw new JiraError('login succeeded but Jira returned no JSESSIONID cookie', res.status);
     }
-    const session: JiraSession = { baseUrl: base, cookie };
-    if (options.persist !== false) {
-      await this.saveSession(session);
-    }
-    return session;
+    return { baseUrl: base, cookie };
   }
 
   /**
    * Low-level authenticated request. `path` is an API path (leading slash
-   * optional) or a full absolute URL; for a path, the base URL comes from
-   * `JIRA_URL` if set, else the session. Returns the raw `Response` — the
-   * caller inspects status and body.
+   * optional) or a full absolute URL; for a path, the base URL comes from the
+   * session. Returns the raw `Response` — the caller inspects status and body.
    */
   request(session: JiraSession, path: string, init: RequestInit = {}): Promise<Response> {
-    const target = isAbsoluteUrl(path) ? path : joinUrl(this.resolveBaseUrl(session), path);
+    const target = isAbsoluteUrl(path) ? path : joinUrl(session.baseUrl, path);
     const headers = new Headers(init.headers);
     if (!headers.has('Accept')) headers.set('Accept', 'application/json');
     headers.set('Cookie', session.cookie);
@@ -214,11 +185,6 @@ export class JiraClient {
       if (options.strict) throw new JiraError(`could not parse issue ${key}: ${errMessage(err)}`);
       return null;
     }
-  }
-
-  /** `JIRA_URL` (read per call) overrides the stored base URL, so one saved session can be replayed against another host. */
-  private resolveBaseUrl(session: JiraSession): string {
-    return stripTrailingSlash(process.env.JIRA_URL || session.baseUrl);
   }
 }
 

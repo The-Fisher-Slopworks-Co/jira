@@ -20,9 +20,11 @@ on later requests.
 > Server / Data Center releases the only thing that works is cookie auth via
 > `/rest/auth/1/session`, which is what this client implements.
 
-It has **zero runtime dependencies** (just `node:` builtins and the global
-`fetch`), so it bundles cleanly into a single binary (`bun build --compile`) and
-drops into any project that has `fetch`.
+It has **zero runtime dependencies** and **no side effects**: the only thing it
+touches is the global `fetch`. No filesystem access, no environment variables, no
+module-level state — a session is plain data you pass in and get back. So it
+bundles cleanly into a single binary (`bun build --compile`), runs in a worker or
+at the edge, and drops into any project that has `fetch`.
 
 ## Install
 
@@ -43,49 +45,64 @@ compile the source directly. A plain-JS / Node consumer, or one on classic
 ```ts
 import { JiraClient, JiraAuthError } from '@slopworks/jira';
 
-// `app` decides the session path: $XDG_CONFIG_HOME/<app>/<sessionFile>.
-const jira = new JiraClient({ app: 'my-tool' });
+const jira = new JiraClient();
 
-// 1. Sign in once. The session (base URL + JSESSIONID) is persisted to disk (0600).
+// 1. Sign in. You get the session back — nothing is written anywhere.
 const session = await jira.login('https://jira.example.com', 'alice', 'secret');
 
-// 2. Later runs reuse it silently.
-const saved = await jira.loadSession(); // JiraSession | null
-
-// 3. Fetch an issue's common fields (summary / status / type / parent + raw body).
+// 2. Fetch an issue's common fields (summary / status / type / parent + raw body).
 try {
   const issue = await jira.getIssue(session, 'PROJ-123');
   if (issue) console.log(issue.summary, issue.status, issue.parent?.key);
 } catch (err) {
   if (err instanceof JiraAuthError) {
-    // 401 — the saved session expired; prompt to log in again.
+    // 401 — the session expired; sign in again.
   }
 }
 
-// 4. Or hit any endpoint yourself with the session's cookie applied.
+// 3. Or hit any endpoint yourself with the session's cookie applied.
 const me = await jira.getJson(session, '/rest/api/2/myself');
+```
+
+### Keeping the session between runs
+
+A `JiraSession` is just `{ baseUrl, cookie }`, so storing it is your call — a
+file, a keychain, a secrets manager, or nowhere at all. The client deliberately
+doesn't decide for you. A file-backed version is a few lines, and note the `0600`:
+the cookie is a live credential.
+
+```ts
+import { readFile, writeFile } from 'node:fs/promises';
+import type { JiraSession } from '@slopworks/jira';
+
+async function loadSession(path: string): Promise<JiraSession | null> {
+  try {
+    const { baseUrl, cookie } = JSON.parse(await readFile(path, 'utf8'));
+    return typeof baseUrl === 'string' && typeof cookie === 'string' ? { baseUrl, cookie } : null;
+  } catch {
+    return null; // missing or malformed → sign in again
+  }
+}
+
+const saveSession = (path: string, session: JiraSession) =>
+  writeFile(path, JSON.stringify(session), { mode: 0o600 });
 ```
 
 ## API
 
 ### `new JiraClient(options?)`
 
-| Option        | Default          | Meaning                                                        |
-|---------------|------------------|----------------------------------------------------------------|
-| `app`         | `'jira'`         | App name for the default session path.                         |
-| `sessionFile` | `'session.json'` | File name under the app dir.                                   |
-| `sessionPath` | derived          | Explicit session path; overrides `app`/`sessionFile`.          |
-| `timeoutMs`   | `6000`           | Per-request timeout — keeps an interactive CLI from hanging on a stalled host. |
-| `fetch`       | global `fetch`   | Injectable `fetch`, for tests.                                 |
+| Option      | Default        | Meaning                                                                       |
+|-------------|----------------|-------------------------------------------------------------------------------|
+| `timeoutMs` | `6000`         | Per-request timeout — keeps an interactive CLI from hanging on a stalled host. |
+| `fetch`     | global `fetch` | Injectable `fetch`, for tests.                                                |
 
 Methods:
 
-- `login(baseUrl, username, password, { persist? })` → `JiraSession`. Signs in
-  and (by default) persists the session. Always uses the explicit `baseUrl`.
-  Throws `JiraError` with a readable message on bad credentials, a non-Server
-  endpoint (404 / Jira Cloud), a CAPTCHA wall, or a network failure.
-- `loadSession()` / `saveSession(session)` — read / write the persisted session.
-- `getSessionPath()` → `string` — the path this client reads/writes the session to.
+- `login(baseUrl, username, password)` → `JiraSession`. Signs in and returns the
+  session; storing it is up to you. Throws `JiraError` with a readable message on
+  bad credentials, a non-Server endpoint (404 / Jira Cloud), a CAPTCHA wall, or a
+  network failure.
 - `getIssue(session, key, { fields?, strict? })` → `JiraIssue | null`.
   **Best-effort:** returns `null` on a not-found / network / parse failure;
   throws `JiraAuthError` on a 401. `strict: true` throws `JiraError` instead of
@@ -98,13 +115,19 @@ Methods:
 - `request(session, path, init?)` → `Response`. The low-level escape hatch
   (POST, custom headers, …); applies the cookie, `Accept`, and the timeout.
 
-### Base-URL override
+### Choosing the host
 
-For replayed requests (`request` / `getJson` / `getIssue`), the `JIRA_URL`
-environment variable — **read per call** — overrides the session's stored base
-URL. That's useful for pointing an existing session at another host (a staging
-instance, a proxy) without re-authenticating. `login` ignores it and uses its
-`baseUrl` argument.
+The base URL always comes from `session.baseUrl` — there is no environment
+variable and no other ambient override. To send an existing session somewhere
+else (a staging instance, a proxy), hand over a session with a different
+`baseUrl`:
+
+```ts
+await jira.getIssue({ ...session, baseUrl: 'https://jira-staging.example.com' }, 'PROJ-123');
+```
+
+A trailing slash is normalised for you, and passing an absolute URL as the
+`path` argument bypasses the base entirely.
 
 ### Errors
 
@@ -115,12 +138,12 @@ instance, a proxy) without re-authenticating. `login` ignores it and uses its
 
 ### Also exported
 
-The pieces the client is built from, for reuse and testing:
+The pieces the client is built from — all pure functions and types, usable
+without ever constructing a `JiraClient`:
 `JiraSession`, `JiraIssue`, `JiraParent`, `JiraSubtask`, `JiraComment`,
-`JiraAttachment`, `parseIssue`, `extractJsessionid`, `stripTrailingSlash`, `joinUrl`,
-`isAbsoluteUrl`, `issuePath`, `issueUrl`, `DEFAULT_ISSUE_FIELDS`,
-`DETAIL_ISSUE_FIELDS`, `defaultSessionPath`, `readSession`, `writeSession`,
-`DEFAULT_TIMEOUT_MS`.
+`JiraAttachment`, `parseIssue`, `extractJsessionid`, `stripTrailingSlash`,
+`joinUrl`, `isAbsoluteUrl`, `issuePath`, `issueUrl`, `DEFAULT_ISSUE_FIELDS`,
+`DETAIL_ISSUE_FIELDS`, `DEFAULT_TIMEOUT_MS`.
 
 ## Development
 

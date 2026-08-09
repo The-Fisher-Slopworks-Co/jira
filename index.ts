@@ -5,8 +5,12 @@
 /**
  * `jira` — a cookie-auth REST client for Jira Server / Data Center. No API
  * token: it signs in with a username/password against
- * `POST /rest/auth/1/session`, persists the resulting `JSESSIONID`, and replays
- * it on later requests.
+ * `POST /rest/auth/1/session` and replays the resulting `JSESSIONID` on later
+ * requests.
+ *
+ * Everything here is pure: no filesystem access, no environment variables, no
+ * module-level state. A {@link JiraSession} is plain data the caller owns and
+ * stores however it likes.
  *
  * Start with {@link JiraClient}; the rest are building blocks and pure helpers.
  */
@@ -22,12 +26,6 @@ export {
   stripTrailingSlash,
 } from './src/url.js';
 export {
-  defaultSessionPath,
-  readSession,
-  writeSession,
-  type JiraSession,
-} from './src/session.js';
-export {
   parseIssue,
   type JiraAttachment,
   type JiraComment,
@@ -40,4 +38,5 @@ export {
   JiraClient,
   type GetIssueOptions,
   type JiraClientOptions,
+  type JiraSession,
 } from './src/client.js';

@@ -1,10 +1,10 @@
 # jira
 
 Cookie-auth REST client for **Jira Server / Data Center** (no API token): signs
-in via `POST /rest/auth/1/session`, persists the `JSESSIONID`, replays it on
-later requests. **Zero runtime dependencies** (`node:` builtins + global `fetch`).
-Jira **Cloud is unsupported** (it disables cookie auth). See README.md for the
-full API.
+in via `POST /rest/auth/1/session` and replays the `JSESSIONID` on later
+requests. **Zero runtime dependencies and no side effects** — the only thing it
+touches is the global `fetch`. Jira **Cloud is unsupported** (it disables cookie
+auth). See README.md for the full API.
 
 ## Commands
 
@@ -18,8 +18,7 @@ bun run typecheck   # tsc --noEmit
 
 `index.ts` is the public barrel. `src/` holds single-purpose modules:
 
-- `client.ts`  — `JiraClient`: login, session load/save, `getIssue`, `getJson`, `request`.
-- `session.ts` — session persistence (path resolution, 0600 read/write).
+- `client.ts`  — `JiraClient` (`login`, `getIssue`, `getJson`, `request`) + the `JiraSession` type.
 - `cookie.ts`  — `extractJsessionid` from `Set-Cookie`.
 - `url.ts`     — URL joining / issue-path helpers.
 - `issue.ts`   — `parseIssue` (raw Jira JSON → `JiraIssue`).
@@ -29,8 +28,11 @@ bun run typecheck   # tsc --noEmit
 
 - **NodeNext imports:** import local modules with a `.js` extension even though
   the files are `.ts` — e.g. `import { x } from './cookie.js'`. Builds fail otherwise.
-- **`JIRA_URL`** overrides the session's stored base URL for replayed requests
-  (`request`/`getJson`/`getIssue`), read **per call**. `login` ignores it.
+- **The library is pure — keep it that way.** No `node:` imports, no
+  `process.env`, no filesystem, no module-level state outside the non-test
+  sources. Persistence and configuration belong to the caller; the base URL comes
+  only from `session.baseUrl`. If a feature seems to need ambient state, take a
+  parameter instead.
 - **No build step** — `main`/`types` point at `index.ts`; the package ships TS source.
 - `getIssue` is **best-effort**: returns `null` on not-found/network/parse failure,
   throws `JiraAuthError` on 401. Pass `strict: true` to throw instead.
