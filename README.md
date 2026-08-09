@@ -5,15 +5,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # jira
 
-A small REST client for Jira Server and Data Center that signs in with a username
-and password instead of an API token. It posts to `/rest/auth/1/session`, gets a
-`JSESSIONID` back, and replays that cookie on later requests. On older on-prem
-instances this is usually the only option left: Jira Cloud disabled cookie auth,
-and personal access tokens need Jira 8.14 or newer.
+A REST client for Jira Server and Data Center that signs in with a username and
+password instead of an API token. It posts to `/rest/auth/1/session`, gets a
+`JSESSIONID` back, and replays that cookie on later requests. Jira Cloud disabled
+cookie auth and personal access tokens need Jira 8.14 or newer, so on older
+on-prem instances this is what is left.
 
-Its only dependency is a global `fetch`. A session is just `{ baseUrl, cookie }`:
-`login` gives you one, every other method takes it back, and keeping it around
-between runs is up to you.
+Its only dependency is a global `fetch`. A session is `{ baseUrl, cookie }`:
+`login` returns one, every other method takes it.
 
 ## Install
 
@@ -37,10 +36,9 @@ const me = await jira.getJson(session, '/rest/api/2/myself');
 ```
 
 `getIssue` returns `null` when the issue is missing or the request fails, and
-throws `JiraAuthError` when the cookie has expired. Pass `{ strict: true }` if
-you would rather have an exception than a `null`. By default it asks for summary,
-status, type and parent; pass `DETAIL_ISSUE_FIELDS` to also get the description,
-comments, attachments and subtasks.
+throws `JiraAuthError` when the cookie has expired; `{ strict: true }` makes it
+throw instead. It requests summary, status, type and parent; `DETAIL_ISSUE_FIELDS`
+adds description, comments, attachments and subtasks.
 
 ## Development
 
@@ -48,6 +46,7 @@ comments, attachments and subtasks.
 bun install
 bun test
 bun run typecheck
+bun run build
 ```
 
 ## License
