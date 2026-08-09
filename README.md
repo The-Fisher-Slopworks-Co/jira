@@ -17,7 +17,7 @@ on-prem instances this is what is left.
 bun add @slopworks/jira      # npm i @slopworks/jira
 ```
 
-No dependencies. Needs a runtime with a global `fetch`.
+No dependencies.
 
 ## Usage
 
