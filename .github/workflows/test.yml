@@ -24,8 +24,10 @@ jobs:
         with:
           bun-version: latest
 
+      # Not --frozen-lockfile: Dependabot bumps package.json but can't regenerate
+      # bun.lock, so a frozen install fails on every dependency PR.
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Type-check
         run: bun run typecheck
