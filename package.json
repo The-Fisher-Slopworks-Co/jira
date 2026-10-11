@@ -46,11 +46,19 @@
     "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
     "format": "prettier --write \"*.ts\" \"src/**/*.ts\"",
-    "format:check": "prettier --check \"*.ts\" \"src/**/*.ts\""
+    "format:check": "prettier --check \"*.ts\" \"src/**/*.ts\"",
+    "knip": "knip",
+    "reuse": "uvx reuse lint",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run knip && bun run reuse && bun run test",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "knip": "^6.32.2",
+    "lefthook": "^2.1.10",
+    "oxlint": "^1.80.0",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   }

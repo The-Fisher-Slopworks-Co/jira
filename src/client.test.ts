@@ -76,20 +76,21 @@ test("login and getIssue work over real HTTP and replay the cookie", async (t: T
   assert.equal(sentCookie, "JSESSIONID=ABC123");
 });
 
+function replyWithSubtask(res: ServerResponse): void {
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(SUBTASK));
+}
+
 test("the session alone decides the host, with no ambient override", async (t: TestContext) => {
   let hitA = false;
   let hitB = false;
-  const reply = (res: ServerResponse) => {
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(SUBTASK));
-  };
   const baseA = await listen(t, (_req, res) => {
     hitA = true;
-    reply(res);
+    replyWithSubtask(res);
   });
   const baseB = await listen(t, (_req, res) => {
     hitB = true;
-    reply(res);
+    replyWithSubtask(res);
   });
   const client = new JiraClient();
 

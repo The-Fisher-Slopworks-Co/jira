@@ -42,11 +42,13 @@ adds description, comments, attachments and subtasks.
 ## Development
 
 ```sh
-bun install
-bun test
-bun run typecheck
+bun install       # also installs the pre-commit hook
+bun run check     # typecheck, lint, format, unused code, REUSE, tests
 bun run build
 ```
+
+`bun run check` runs `reuse lint` through `uvx`, so it needs
+[uv](https://docs.astral.sh/uv/).
 
 ## License
 
