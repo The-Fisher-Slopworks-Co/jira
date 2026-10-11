@@ -3,11 +3,15 @@
 ## Commands
 
 ```sh
-bun install
+bun install         # also installs the lefthook pre-commit hook
+bun run check       # the gate: typecheck, lint, format:check, knip, reuse, test
 bun test            # runs against a real local HTTP server, no creds
 bun run typecheck   # tsc --noEmit, covers the tests too
+bun run format      # prettier --write
 bun run build       # tsc -p tsconfig.build.json → dist/
 ```
+
+`bun run reuse` needs [uv](https://docs.astral.sh/uv/) on the machine.
 
 ## Definition of done
 
@@ -20,7 +24,7 @@ bun run build       # tsc -p tsconfig.build.json → dist/
   - Subject: lowercase start, imperative, no trailing period.
   - The body describes this PR alone, following the PR template.
 - **No AI attribution.** No `Assisted-by:` / `Co-Authored-By: <LLM>` trailers, no agent as commit author or committer, and no "Generated with/by …" lines or agent-platform links in PR bodies. The PR body becomes the squash commit body, so the PR title workflow checks the title, the body and every commit of the PR.
-- **Before opening:** `bun run typecheck`, `bun test` and `bun run build` green, then open the PR and report its URL.
+- **Before opening:** `bun run check` and `bun run build` green, then open the PR and report its URL.
 - **Never merge locally.** Merging happens on GitHub, squash only.
 
 ## Architecture
@@ -36,7 +40,7 @@ bun run build       # tsc -p tsconfig.build.json → dist/
 ## Gotchas
 
 - Import local modules with a `.js` extension even though the files are `.ts`:
-  `import { x } from './cookie.js'`. NodeNext rejects the extensionless form and
+  `import { x } from "./cookie.js"`. NodeNext rejects the extensionless form and
   emits the specifier verbatim, so what you write is what runs.
 - Keep the library pure. In the non-test sources: no `node:` imports, no
   `process.env`, no filesystem, no module-level state. Persistence and
