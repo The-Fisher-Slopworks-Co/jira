@@ -14,8 +14,8 @@
  *
  * Start with {@link JiraClient}; the rest are building blocks and pure helpers.
  */
-export { JiraError, JiraAuthError } from './src/errors.js';
-export { extractJsessionid } from './src/cookie.js';
+export { JiraError, JiraAuthError } from "./src/errors.js";
+export { extractJsessionid } from "./src/cookie.js";
 export {
   DEFAULT_ISSUE_FIELDS,
   DETAIL_ISSUE_FIELDS,
@@ -24,7 +24,7 @@ export {
   issueUrl,
   joinUrl,
   stripTrailingSlash,
-} from './src/url.js';
+} from "./src/url.js";
 export {
   parseIssue,
   type JiraAttachment,
@@ -32,11 +32,11 @@ export {
   type JiraIssue,
   type JiraParent,
   type JiraSubtask,
-} from './src/issue.js';
+} from "./src/issue.js";
 export {
   DEFAULT_TIMEOUT_MS,
   JiraClient,
   type GetIssueOptions,
   type JiraClientOptions,
   type JiraSession,
-} from './src/client.js';
+} from "./src/client.js";

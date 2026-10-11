@@ -10,8 +10,8 @@
  */
 export function extractJsessionid(setCookieHeaders: string[]): string | null {
   for (const header of setCookieHeaders) {
-    const pair = header.split(';', 1)[0]?.trim() ?? '';
-    if (pair.startsWith('JSESSIONID=') && pair.length > 'JSESSIONID='.length) {
+    const pair = header.split(";", 1)[0]?.trim() ?? "";
+    if (pair.startsWith("JSESSIONID=") && pair.length > "JSESSIONID=".length) {
       return pair;
     }
   }
