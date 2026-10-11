@@ -45,10 +45,13 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "bun run clean && bun run build",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"*.ts\" \"src/**/*.ts\"",
+    "format:check": "prettier --check \"*.ts\" \"src/**/*.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   }
 }
