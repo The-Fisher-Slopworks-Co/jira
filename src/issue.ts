@@ -91,12 +91,12 @@ export interface JiraIssue {
 
 /** Narrow an unknown value to a `string`, or `null`. */
 function str(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
+  return typeof v === "string" ? v : null;
 }
 
 /** Narrow an unknown value to a finite `number`, or `null`. */
 function num(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 /** Display name nested under an author-like object (`{ displayName }`), or `null`. */
@@ -116,7 +116,10 @@ export function parseIssue(json: unknown): JiraIssue {
     summary?: unknown;
     status?: { name?: unknown };
     issuetype?: { name?: unknown };
-    parent?: { key?: unknown; fields?: { summary?: unknown; issuetype?: { name?: unknown } } };
+    parent?: {
+      key?: unknown;
+      fields?: { summary?: unknown; issuetype?: { name?: unknown } };
+    };
     description?: unknown;
     comment?: { comments?: unknown };
     attachment?: unknown;
@@ -139,7 +142,9 @@ export function parseIssue(json: unknown): JiraIssue {
     ? fields.attachment.map(parseAttachment)
     : [];
   const subtasks = Array.isArray(fields.subtasks)
-    ? fields.subtasks.map(parseSubtask).filter((s): s is JiraSubtask => s != null)
+    ? fields.subtasks
+        .map(parseSubtask)
+        .filter((s): s is JiraSubtask => s != null)
     : [];
   return {
     key: str(root.key),
@@ -165,7 +170,11 @@ export function parseIssue(json: unknown): JiraIssue {
 function parseSubtask(raw: unknown): JiraSubtask | null {
   const s = (raw ?? {}) as {
     key?: unknown;
-    fields?: { summary?: unknown; status?: { name?: unknown }; issuetype?: { name?: unknown } };
+    fields?: {
+      summary?: unknown;
+      status?: { name?: unknown };
+      issuetype?: { name?: unknown };
+    };
   };
   const key = str(s.key);
   if (key == null) return null;

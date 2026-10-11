@@ -2,10 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { extractJsessionid } from './cookie.js';
-import { JiraAuthError, JiraError } from './errors.js';
-import { type JiraIssue, parseIssue } from './issue.js';
-import { DEFAULT_ISSUE_FIELDS, isAbsoluteUrl, issuePath, joinUrl, stripTrailingSlash } from './url.js';
+import { extractJsessionid } from "./cookie.js";
+import { JiraAuthError, JiraError } from "./errors.js";
+import { type JiraIssue, parseIssue } from "./issue.js";
+import {
+  DEFAULT_ISSUE_FIELDS,
+  isAbsoluteUrl,
+  issuePath,
+  joinUrl,
+  stripTrailingSlash,
+} from "./url.js";
 
 /** Default per-request timeout. A best-effort tool must not hang on a slow host. */
 export const DEFAULT_TIMEOUT_MS = 6000;
@@ -71,41 +77,56 @@ export class JiraClient {
    * The session is returned, never stored: persist it yourself if later runs
    * should reuse it instead of signing in again.
    */
-  async login(baseUrl: string, username: string, password: string): Promise<JiraSession> {
+  async login(
+    baseUrl: string,
+    username: string,
+    password: string,
+  ): Promise<JiraSession> {
     const base = stripTrailingSlash(baseUrl);
     let res: Response;
     try {
       res = await this.fetchImpl(`${base}/rest/auth/1/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ username, password }),
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (err) {
-      throw new JiraError(`could not reach Jira at ${base}: ${errMessage(err)}`);
+      throw new JiraError(
+        `could not reach Jira at ${base}: ${errMessage(err)}`,
+      );
     }
     if (res.status === 404) {
       throw new JiraError(
         `login endpoint not found at ${base} — wrong URL, or Jira Cloud ` +
-          '(cookie auth needs Jira Server/Data Center)',
+          "(cookie auth needs Jira Server/Data Center)",
         404,
       );
     }
     if (res.status === 401 || res.status === 403) {
-      if (res.headers.get('x-authentication-denied-reason')) {
+      if (res.headers.get("x-authentication-denied-reason")) {
         throw new JiraError(
-          'Jira requires a CAPTCHA — sign in via the web UI once, then retry',
+          "Jira requires a CAPTCHA — sign in via the web UI once, then retry",
           res.status,
         );
       }
-      throw new JiraError('wrong username/password (or no permission to log in)', res.status);
+      throw new JiraError(
+        "wrong username/password (or no permission to log in)",
+        res.status,
+      );
     }
     if (!res.ok) {
       throw new JiraError(`Jira login failed (HTTP ${res.status})`, res.status);
     }
     const cookie = extractJsessionid(res.headers.getSetCookie());
     if (cookie == null) {
-      throw new JiraError('login succeeded but Jira returned no JSESSIONID cookie', res.status);
+      throw new JiraError(
+        "login succeeded but Jira returned no JSESSIONID cookie",
+        res.status,
+      );
     }
     return { baseUrl: base, cookie };
   }
@@ -115,11 +136,15 @@ export class JiraClient {
    * optional) or a full absolute URL; for a path, the base URL comes from the
    * session. Returns the raw `Response` — the caller inspects status and body.
    */
-  request(session: JiraSession, path: string, init: RequestInit = {}): Promise<Response> {
+  request(
+    session: JiraSession,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
     const target = isAbsoluteUrl(path) ? path : joinUrl(session.baseUrl, path);
     const headers = new Headers(init.headers);
-    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-    headers.set('Cookie', session.cookie);
+    if (!headers.has("Accept")) headers.set("Accept", "application/json");
+    headers.set("Cookie", session.cookie);
     return this.fetchImpl(target, {
       ...init,
       headers,
@@ -143,12 +168,17 @@ export class JiraClient {
       throw new JiraAuthError();
     }
     if (!res.ok) {
-      throw new JiraError(`Jira returned HTTP ${res.status} for ${path}`, res.status);
+      throw new JiraError(
+        `Jira returned HTTP ${res.status} for ${path}`,
+        res.status,
+      );
     }
     try {
       return (await res.json()) as T;
     } catch (err) {
-      throw new JiraError(`could not parse Jira response for ${path}: ${errMessage(err)}`);
+      throw new JiraError(
+        `could not parse Jira response for ${path}: ${errMessage(err)}`,
+      );
     }
   }
 
@@ -169,20 +199,23 @@ export class JiraClient {
     try {
       res = await this.request(session, path);
     } catch (err) {
-      if (options.strict) throw new JiraError(`could not reach Jira: ${errMessage(err)}`);
+      if (options.strict)
+        throw new JiraError(`could not reach Jira: ${errMessage(err)}`);
       return null; // network error or timeout → caller's fallback
     }
     if (res.status === 401) {
       throw new JiraAuthError();
     }
     if (!res.ok) {
-      if (options.strict) throw new JiraError(`Jira returned HTTP ${res.status}`, res.status);
+      if (options.strict)
+        throw new JiraError(`Jira returned HTTP ${res.status}`, res.status);
       return null; // 404 (no access / unknown key) and anything else
     }
     try {
       return parseIssue(await res.json());
     } catch (err) {
-      if (options.strict) throw new JiraError(`could not parse issue ${key}: ${errMessage(err)}`);
+      if (options.strict)
+        throw new JiraError(`could not parse issue ${key}: ${errMessage(err)}`);
       return null;
     }
   }

@@ -10,7 +10,7 @@ export class JiraError extends Error {
   readonly status: number | undefined;
   constructor(message: string, status?: number) {
     super(message);
-    this.name = 'JiraError';
+    this.name = "JiraError";
     this.status = status;
   }
 }
@@ -21,8 +21,8 @@ export class JiraError extends Error {
  * the recoverable failures that best-effort methods swallow.
  */
 export class JiraAuthError extends JiraError {
-  constructor(message = 'Jira session expired or unauthenticated') {
+  constructor(message = "Jira session expired or unauthenticated") {
     super(message, 401);
-    this.name = 'JiraAuthError';
+    this.name = "JiraAuthError";
   }
 }

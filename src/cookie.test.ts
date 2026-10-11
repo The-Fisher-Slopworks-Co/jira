@@ -2,24 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import assert from "node:assert/strict";
+import test from "node:test";
 
-import { extractJsessionid } from './cookie.js';
+import { extractJsessionid } from "./cookie.js";
 
-test('extract finds the JSESSIONID pair', () => {
-  assert.equal(extractJsessionid(['JSESSIONID=ABC123; Path=/; HttpOnly']), 'JSESSIONID=ABC123');
-});
-
-test('extract skips other cookies', () => {
+test("extract finds the JSESSIONID pair", () => {
   assert.equal(
-    extractJsessionid(['atlassian.xsrf.token=tok; Path=/', 'JSESSIONID=XYZ; Secure']),
-    'JSESSIONID=XYZ',
+    extractJsessionid(["JSESSIONID=ABC123; Path=/; HttpOnly"]),
+    "JSESSIONID=ABC123",
   );
 });
 
-test('extract returns null when absent or empty-valued', () => {
+test("extract skips other cookies", () => {
+  assert.equal(
+    extractJsessionid([
+      "atlassian.xsrf.token=tok; Path=/",
+      "JSESSIONID=XYZ; Secure",
+    ]),
+    "JSESSIONID=XYZ",
+  );
+});
+
+test("extract returns null when absent or empty-valued", () => {
   assert.equal(extractJsessionid([]), null);
-  assert.equal(extractJsessionid(['other=1; Path=/']), null);
-  assert.equal(extractJsessionid(['JSESSIONID=; Path=/']), null);
+  assert.equal(extractJsessionid(["other=1; Path=/"]), null);
+  assert.equal(extractJsessionid(["JSESSIONID=; Path=/"]), null);
 });
